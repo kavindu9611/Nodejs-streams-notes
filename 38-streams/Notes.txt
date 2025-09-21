@@ -1,0 +1,140 @@
+Definition of streams in the Node.js documentation.
+    Node.js says that stream is an abstract interface 
+    for working with streaming data in Node.js.
+
+
+Streams are something that helps us with data streaming.
+It makes data streaming way more efficient.
+Now you might be asking, what exactly is this streaming data?
+When we say streaming things like video streaming, game streaming,
+ Netflix or in general media streaming
+might come into mind, but it's a lot more than that.
+
+Whenever we have data flowing, we can say that we have data streaming.
+The definition of stream in the English language is just a continuous flow of something.
+It also means a narrow river, which is also relatable.
+But here in computer science, it's closer to that continuous flow.
+
+So if I say, for example, a stream of people is coming to the school, maybe for the graduation party,
+I don't mean that 500 people are coming in through the door and one chunk in one second.
+No, I mean that people are coming in gradually.
+For example, five people will come in and then another minute, ten more people, another second,
+two more people.
+And over time they will gather.
+And then we're going to have a total number of maybe 1000 people in the school.
+So that's the same concept in computer science.
+
+Data streaming just means that you don't move the whole data in just in one chunk.
+You move it over time in different chunks, you break it down to different chunks, and then you send
+those chunks over, and then at the end you just combine them together.
+Or maybe not.
+The point is that you're sending it in different chunks.
+
+So let's take a look at one example.
+
+Let's say you want to do a copy paste.
+So you have a file on your computer or your laptop.
+Maybe that's ten gigabytes in size.
+And you want to copy this file and paste it somewhere else, maybe on the same laptop or on another
+disk on your server.
+On a USB drive.
+It doesn't matter.
+You just want to do this action of copy pasting.
+Now what you could do.
+And by that I mean your operating system or the program that's supposed to do this copy pasting.
+It could just move this whole file in your memory first.
+So your memory is going to be occupied for like ten gigabytes.
+And then it's going to do only one write and create this one file.
+
+So that's one option of doing it.
+It's like moving 500 people through the door all at the same time in just one second.
+Now you might be saying, well, that's really fast.
+we're just going to get all the people in one second rather than waiting for like maybe 5 minutes
+or 1 minute or two.
+
+But the problem is that you also need to build this huge door that will allow 500 people to come in
+all at the same time, which is really not ideal in a lot of cases.
+And it's really not efficient to build that huge door just to be able to move 500 people, maybe just
+for a graduation party or something like that.
+It's not something that's really ideal in our world.
+And the same is true in computer science.
+It's not ideal to move this whole file in your memory and then do one write, although that's possible
+and you could do it.
+It's not really ideal.
+
+Let's say that somebody is on their mobile phone and they only have like one gigabytes of Ram, and
+they want to do a copy paste of a file that's like 500MB.
+If they do that, they're going to occupy half of their memory, which is already full in a lot of cases.
+And that's really going to end up in a lot of different performance issues.
+And it's not really something ideal.
+You don't want to do something like that.
+Instead, what you need to do in your operating system or the application you're creating, you need
+to set up a stream of data between these two points.
+
+So in our case of doing this, copy paste rather than just moving this whole file into memory and then
+just one.
+Right.
+You're going to just send different chunks.
+Maybe send them in chunk of 16kB, 20kB, one megabyte or something like that.
+Now, yeah, you are technically doing more writes, but it's way more memory efficient.
+And also in terms of speed, it's close to that previous example.
+It's not really as fast as that one, but it's really close.
+
+Now, in the case of node and our previous example of writing many times to a file, what we did was
+that we wrote 1 million times to that poor file.
+But after using a stream, we reduce that number.
+So using a stream, we set up a stream.
+We wait for the data to gather and get big enough to be equal to the size of our chunk.
+And then we write.
+
+Now the size of our chunk by default is 16kB.
+So that's what streams use in NodeJS by default.
+So we wait for the data to gather.
+And I mean, each time we write, we're writing to that buffer.
+And then if it gets big enough, then we're going 
+set up a stream and then we keep writing to it, keep waiting for the data to become available.
+
+writing and reading from files isn't the only place where node is using streams.
+imagine that you have your node process and also another
+process called FFmpeg, which is an application that you can use for editing files.
+Actually editing video files, like cutting them out or adding a text, just usually normal video editing
+operations.
+
+So let's say that you want to make your Node.js process to talk to this one.
+You're creating an online video editing application and you're constantly receiving the data.
+For example, cut from this portion or change text here or change the effect here or things like that.
+So you keep getting those data.
+And what you need to do is to set up a stream between your process and a ffmpeg, and keep sending those
+data in Chunk.
+This is going to be way more efficient than sending all of these in one go.
+Like in our previous example
+
+But you can imagine that this is another example where using streams will make sense.
+We have a flow of data.
+We keep sending information to this ffmpeg.
+And this is a very good example of using streams.
+
+Now you could also use many different streams in your node application.
+For example, you could have another one that will talk to the network card.
+So when you as you receive requests from the clients, you read those requests off of your network card
+and then you do processing on them.
+Or you could also send responses back to the network card to go to the outside internet.
+So this is another example.
+We're using streams is extremely efficient.
+And in fact if you're using the Http module or the.
+Net module, or pretty much if you have created any network applications in node, you have used streams.
+Now those packages are using them behind the scenes for you.
+But that's what is really happening.
+
+There is a stream there and it's keep reading from the requests
+and writing to the responses.
+You could also have another stream to your storage so you would receive the files, for example MP4
+files, and you save them to your storage using a write stream and then using another write stream.
+You talk to ffmpeg to say, all right, go ahead, grab that file and do these operations.
+
+Once done,ffmpeg might use another stream to send you the information to say that I'm done.
+And here is the new data.
+Now you would receive those data in a read stream rather than a write stream, and then you would just
+send a response back to the client using a write stream because you're writing to the network card.
+So these are just some examples where node is heavily using streams.
+And this is making your node applications way faster.
