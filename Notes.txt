@@ -1,0 +1,24 @@
+The numbers are not in order because of asynchronous writes.
+Here’s what’s happening in your code:
+
+const fs = require("node:fs");
+
+(async()=>{
+    console.time("writeMany");
+    fs.open("test.txt", "w", (err, fd)=>{
+        for(let i = 0; i < 1000000; i++){
+            // fs.write is ASYNC, it queues the writes
+            fs.write(fd, ` ${i} `, ()=>{})
+        }
+    })
+    console.timeEnd("writeMany")
+})();
+
+Why out of order?
+
+fs.write is non-blocking → it sends the write request to the OS and immediately moves on.
+The OS and Node.js event loop decide when each write actually completes.
+Because you’re firing 1,000,000 async writes almost instantly, the order they finish is not guaranteed.
+That’s why the numbers in your file appear jumbled.
+How to fix it (make writes sequential)
+You need to await each write or use the fs.promises API instead:
