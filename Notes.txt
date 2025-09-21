@@ -22,3 +22,60 @@ Because you’re firing 1,000,000 async writes almost instantly, the order they 
 That’s why the numbers in your file appear jumbled.
 How to fix it (make writes sequential)
 You need to await each write or use the fs.promises API instead:
+
+
+*****************************************************************
+
+const fs = require("node:fs");
+
+(async()=>{
+    console.time("writeMany");
+    fs.open("test.txt", "w", (err, fd)=>{
+        for(let i = 0; i < 1000000; i++){
+            fs.writeSync(fd, ` ${i} `)
+        }
+    })
+    console.timeEnd("writeMany")
+
+})()
+
+
+Step 1: Open file
+
+fs.open("test.txt", "w", callback)
+The OS opens test.txt for writing.
+Returns a file descriptor (fd), which is just a reference to this open file.
+
+Step 2: Loop and buffer creation
+
+for(let i = 0; i < 1000000; i++){
+    fs.writeSync(fd, ` ${i} `)
+}
+
+
+Each iteration creates a temporary buffer from the string ` ${i} `.
+That buffer is passed to the OS with the fd.
+The OS copies the data into its page cache (RAM) for that file.
+Key: This does not necessarily write to the physical disk immediately.
+
+Step 3: OS page cache and flushing
+
+The OS stores the data in RAM first (called the page cache).
+The OS decides when to flush that data to the actual hard disk — it could be:
+When the buffer reaches a certain size
+After some time interval
+When the file is closed (fs.close(fd))
+If you explicitly call fs.fsync(fd)
+So, all 1,000,000 buffers are first copied to RAM, and then the OS writes them in chunks to the physical storage.
+
+Step 4: Disk storage
+
+Eventually, the OS writes the buffered data to the physical location of test.txt on your hard disk.
+The file descriptor (fd) ensures the OS knows which file’s page cache the data belongs to.
+
+✅ Summary
+
+test.txt opened → get fd.
+Each loop iteration → create buffer → pass to OS → OS copies to RAM (page cache).
+Data is gradually flushed from RAM → hard disk.
+Millions of small buffers do not all hit the disk individually, only after being cached and batched.
