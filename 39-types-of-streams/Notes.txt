@@ -1,0 +1,247 @@
+There are two fundamental types of streams
+    1.Readable
+    2.Writable
+
+Writable - Writable stream would be a stream that you could write to
+Readable - Readable stream is a stream that you would read from
+
+When we are reading from the requests we are using readable stream
+When we are writing to the responses we are using we are using writable streams
+
+We also have two more streams
+    Duplex
+    Transform
+
+    Duplex-Just a stream thats both writable and readable
+    Transform - just like duplex,but it also transforms the data
+
+
+So whenever we have a flow of data.
+Streams are an incredible option to use.
+
+So this flow of data could be between node and another process or node and an underlying resource like
+hardware.
+Or it could just be really any kind of data flowing.
+And by data we just mean zeros and ones.
+
+Example(Refer screenshot 39-2) 
+
+let's say that you have this piece of data and you want to encrypt it.
+So you want to do some operations and make this data encrypted so that nobody could access it unless
+they have access to secret codes.
+Now what you could do is to create a map and say, whenever I have 0011 and 111, I'm just going to change
+it to 111 and 000.
+So we're going to look for in the data and see where we have these patterns.
+And just to note, these encryptions and compressions and things like these are actually working with
+the raw binary data with these zeros and ones in most cases.
+So what you would do is to just find those keys and then just do a replace and end up with something
+that's really not meaningful to somebody that doesn't understand this map.
+So this part will be something gibberish.
+If someone takes this data and runs it through a character encoding, they're going to end up with some
+gibberish because we have done replace here.
+Now, if you give this to the right user and now they want to decrypt it, what they could do is to
+just use that map and do another replace and go backwards and then get the original data.
+Now in real world encryption applications, it's actually more complex than this.
+There are a lot of prime numbers involved, a lot of discrete math.
+So it's not just doing a replace on one portion of the code and then leaving the rest as they are.
+It's just more like doing an encryption on all of the data using some mathematical formulas.
+So it's more complex and also way harder to crack.
+But this is also a valid example of an encryption.
+You just have to make sure to keep an eye out on those keys so that you know that this is an actual
+key and you have to do to replace, and it's not part of the data.
+But anyway, now this is an example of data flowing.
+Imagine you want to encrypt a huge message that's hundreds of megabytes, or maybe a couple of gigabytes
+or even more.
+It's not really memory efficient to just move all that data into your memory and then do your encryption.
+What you would do instead is to just try to get different chunks out of that original message, be it
+a file or a response.
+It doesn't matter.
+Just be any kind of data.
+It doesn't even have to be a string, just some raw binary data.
+So you want to get different chunks out of this file and then do these operations and make it encrypted,
+and then write it to a destination.
+And this is a good example of using a transform stream.
+So we just read the data, transform it and write it to a destination.
+
+
+Another example would be if you want to compress a data (39-3).
+
+Now in this case you would kind of go the other way.
+So you keep looking for patterns, you keep looking for repetitions, and you try to condense them down
+to something smaller.
+
+For example, you want to have a map like this and say, I have this many ones and double zero and then
+this many ones.
+I'm just going to condense it to zero one, zero one, zero one.
+And then you're going to look for those patterns, which we have three here in this binary data.
+And then you're going to do your replace.
+So what's going to happen is that you're going to end up with a file that's much smaller in size compared
+to your original file.
+And then using this map you could just get the original file.
+Now you might compress some data, and the file size might not really change because there might not
+be that much repetition or that many patterns to condense them down to something else.
+But some cases, especially if there is a ton of manual repetition, you could really reduce the file
+size by so much.
+But again, it really depends on the data that you're working with.
+But here could be another example of using a transform stream.
+The point is, whenever you have this data flowing, you could use streams.
+You could use the readable stream to just read.
+You could use the writable stream to just write duplex if you want to do both and transform if you want
+to modify the data in any way.
+
+
+
+So now let's understand what happens inside of a stream object.
+
+
+writable stream(refer 39-4 to 39-8)
+
+So let's say that this is our writable stream object.
+And we can get this by running something like fs.createWriteStream.
+This is our writable stream.
+Now inside of this writable stream object we have an internal buffer.
+And its size is 16,384 bytes by default, which is specified by the high water mark value.
+this is the default size and you can change it.
+But this is by default how much of a buffer will be allocated to each stream in node.
+Now apart from this internal buffer, each stream object, each writable stream object also has some
+events, properties, and methods available on it.
+Now one of the most important methods is this stream.write methods.
+Now, whenever you call this function this method, what's going to happen is that you're going to push
+some amount of data into your internal buffer.
+Let's say you try to write a buffer that's of size 300 bytes.
+Now this data here is should be a buffer.
+Now you can also specify a string.
+But notice later on we'll use the character encoding specified to convert this data this string to a
+buffer.
+And then do the write.
+So this data think of it just like a buffer.
+Although you could specify a string.
+But think of it like that.
+You could only specify a buffer just to make it easy for you to understand how this works.
+So you push some amount of data into this internal buffer and you keep pushing.
+So you push another chunk chunk another one, another one, another one, and you keep going until your
+buffer is completely filled.
+So now that we have our buffer completely filled, what the stream will do in this case is that it will
+do a write.
+So it will now pull all of this data out in one chunk and do one write.
+This is how a writable stream works in node.
+
+Now the reason that it's so efficient, one of the reasons actually is if you take a look we wrote eight
+times.
+So if you count these there are eight different chunks.
+So we wrote to that stream object eight times.
+Now in our example we have that loop.
+And we kept writing these numbers to our file.
+So we kept pushing those small data to that stream.
+So in this example we wrote eight times.
+But the important point here is that we only write once.
+So we write to our stream eight times but we only write once.
+Now when you write your writing to an underlying resource like a file for example, or your network
+card, now this is way more efficient because you're writing now and your memory and your process and
+your NodeJS process.
+And then once the data is filled, you're just going to do a write. now in our example of that for loop
+and writing those numbers.
+Now without streams we're writing 1 million times to our underlying resource.
+But if we use streams, what will happen is that we will keep gathering the data and then do one write.
+So we will significantly decrease the number of writes that we do into that file, which is way more
+efficient.
+Now you might be asking what will happen if we try to write to the stream an amount of data that's way
+bigger than the internal buffer, and I just way bigger, just slightly bigger.
+
+Let's say that here, our last write was 2177 bytes.
+Now, what will happen if we try to write a data that's maybe like 3000 bytes for our last write to
+completely fill this buffer?
+Now what will happen is that node will push this amount of bytes to our internal buffer and then buffer
+the rest of the data, which is going to be around 800 bytes.
+Now that 800 bytes will be in memory, it will keep track of it.
+And once the internal buffer is emptied, it's going to push that again to this internal buffer.
+
+Now, if you think about it, this case, we're going to have a problem.
+What if you keep writing to this internal buffer without letting it to get emptied?
+Now, what's going to happen is that Node.js will keep buffering all of this data.
+And by buffering, I just want to say this one more time.
+A buffer is a location in memory that holds a specific amount of data.
+So if you create a buffer that's 400MB in size, you are quickly filling your memory by 400MB.
+So why don't we have a buffer?
+Whatever its size is, you have allocated that much size off of your memory.
+
+All right.
+So if you keep buffering data it's going to be a problem because you're going to run into some memory
+issues.
+For example, if you try to write a data that's 800MB in size, what will happen is that, well, first
+of all, the buffer will get filled.
+And we're going to have this 16kB in our internal buffer.
+But notice now we'll keep the rest of the data in memory.
+Right.
+Which is going to be a huge problem.
+And in this case our memory usage will jump up to 800MB, which is not something that we want.
+We're using streams to try to lower this amount as much as we possibly can.
+But if we try to do this, if we try to run this code, if we try to say stream.write and put a
+data that's very huge, we're going to have some memory issues or not just doing one writes, but you
+keep writing without letting the buffer get emptied.
+Like our previous example, we kept writing to that stream, but we didn't really let it to get empty.
+We just kept writing, and now we just kept buffering all those incoming data so that we had that huge
+amount of memory issue.
+I guess it was like 700MB, I don't recall, but it was a huge amount, which is something that we don't
+want.
+So what you need to do is to first wait for this internal buffer to get emptied and then do another.
+right now, this time, this process that the stream does to empty this buffer is called draining.
+And we have to keep an eye out on this event.
+And it's actually an event.
+So you say a writeable stream dot on drain and then you do your code.
+We're going to see all that in code.
+But I just want to say that you have to wait for this internal buffer to get emptied.
+And after it's completely empty, you are now safe to push more data into this internal buffer.
+Or I should say, right.
+So this is how a writable stream works in node.
+It's just an object that has some events, properties and methods, and also this internal buffer.
+
+
+Let's now take a look at the readable stream object.
+Let's see how this works.
+So again we have our stream object.
+
+And we can get this by running something like fs.createReadStream.
+And what we're going to end up with is this object.
+Now just like a writable stream, we have an internal buffer size of which is that high watermark value,
+which is by default 16,384 bytes or just 16kB.
+Now again, just like a write old stream.
+We have some events, properties and methods available on this readable stream.
+The way that we can push data into this readable stream is by calling stream.push, and then
+some amount of data.
+So we keep pushing into this internal buffer.
+And what's going to happen is that once it's filled we're going to get an event.
+And the event is called Stream.on(data).
+So the event name is data.
+So you need to run this code on your readable stream and keep looking for these data events.
+So once the internal buffer is full we're going to get an event called data.
+And we're going to get this data all in one chunk here in this callback function.
+So we're going to pull the data out and we're going to do whatever we want with it.
+So this is a readable stream, and you use this readable stream to make a huge data, a huge message
+into different chunks.
+
+So let's go back into our previous example.
+Here let's say that you have this 800MB of data.
+Let's say it's a message coming to your network card.
+Maybe it's a request or if it's a file you want to read.
+So what should you do in this case?
+What do you think?
+Let's say that I want to write a data to a writable stream t
+Maybe it's a file and the data is so huge, what should I do in that case?
+Well, what you should do is to first create a readable stream off of this data, be it a file or a
+request, anything.
+You first create a readable stream, and then when you create a readable stream, you're going to get
+the data in chunks of this size, this 16kB, 16kB of size.
+So you get the data and then you write to this writable stream.
+So this is what you should do.
+If you have a huge amount of data and you want to write it somewhere.
+First create a readable stream and then you write it.
+
+Now what about duplex and transform.
+Now they're just like these two.
+A duplex is just a stream that you could both write to and read from.
+So a writeable stream and a readable stream.
+They only have one internal buffer, only one, but a duplex has two.
+A transform has two.
+One for reading and one for writing.
+So these are all the streams we have in a nutshell.
