@@ -79,3 +79,164 @@ test.txt opened → get fd.
 Each loop iteration → create buffer → pass to OS → OS copies to RAM (page cache).
 Data is gradually flushed from RAM → hard disk.
 Millions of small buffers do not all hit the disk individually, only after being cached and batched.
+
+
+
+*****************************************************************************************************************************
+
+const fs = require("node:fs");
+
+(async()=>{
+    console.time("writeMany");
+    fs.open("test.txt", "w", (err, fd)=>{
+        for(let i = 0; i < 1000000; i++){
+            const buff = Buffer.from(` ${i} `, "utf-8")
+            fs.write(fd, ` ${buff} `, ()=>{})
+        }
+    })
+    console.timeEnd("writeMany")
+})();
+
+Step 1: What happens with Buffer.from(...)
+Buffer.from(" ${i} ", "utf-8")
+→ Creates a Node.js Buffer object in userland (your JS memory / V8 heap).
+
+That buffer holds the raw bytes of your string (" 123 " → [32, 49, 50, 51, 32]).
+
+So in the loop, you’re creating 1,000,000 JS Buffer objects.
+They exist in Node’s heap memory (managed by V8), not yet in the OS page cache.
+
+Step 2: What happens with fs.write(fd, data, cb)
+fs.write accepts either a Buffer or a string.
+
+In your code, you passed ` ${buff} `, which is actually a string like " <Buffer 32 33 34> ".
+That means Node will internally convert this string into another Buffer before handing it off to the OS.
+
+⚠️ So you’re making an extra conversion, wasting memory/CPU.
+
+If you had passed the buff directly:
+
+
+fs.write(fd, buff, ()=>{})
+👉 Node would just send the existing Buffer to the OS (no second buffer creation).
+
+Step 3: OS + Page Cache
+Once Node calls into libuv → OS syscall → the buffer data is copied into the OS page cache (RAM).
+From then, the OS decides when to flush to disk.
+
+Node’s buffer can be garbage collected once it’s no longer referenced, but the OS still has its copy in the page cache.
+
+✅ So to answer your question
+Yes → you are creating 1 million Node.js Buffers in JS memory.
+Yes again → by passing a template string instead of the buffer, Node internally creates another Buffer for the string " ${buff} ".
+Then → that data is copied into the page cache (separate, managed by the OS).
+So you end up with 2 levels of buffering:
+Node.js heap Buffers (temporary, per iteration).
+OS Page Cache (persistent until flushed).
+
+👉 If your intent was efficiency, you should write:
+
+fs.write(fd, buff, ()=>{})
+instead of interpolating buff into a string. That way, you avoid creating millions of extra Buffers.
+Do you want me to also show you a memory flow diagram (Node heap → libuv → syscall → page cache → disk) for this case?
+
+Memory flow step by step with a diagram for your case.
+
+🧠 Memory Flow (when using your code with Buffer.from and fs.write(fd, \ ${buff} `)`)
+
+[Node.js JavaScript land]
+  |
+  | 1. Loop creates Buffers in V8 heap
+  |    buff = Buffer.from(" 123 ", "utf-8")
+  v
++------------------+
+| V8 Heap (RAM)    |   → stores Node Buffers (1M objects)
++------------------+
+          |
+          | 2. You interpolate `${buff}` → string like " <Buffer 31 32 33> "
+          v
++------------------+
+| JS String (V8)   |   → another object, later converted to bytes
++------------------+
+          |
+          | 3. fs.write gets the string → internally makes a new Buffer
+          v
++------------------+
+| New Buffer       |   → created by Node internally for write
++------------------+
+          |
+          | 4. libuv syscall → hand buffer to OS
+          v
++------------------+
+| OS Kernel (syscall layer)
++------------------+
+          |
+          | 5. OS copies data into Page Cache (RAM managed by OS)
+          v
++------------------+
+| Page Cache       |   → internal pool of memory in OS
++------------------+
+          |
+          | 6. Later, OS flushes chunks to disk
+          v
++------------------+
+| Disk (SSD/HDD)   |
++------------------+
+
+⚡ Key Notes:
+
+Two avoidable copies happen in your version:
+Buffer → String interpolation → New Buffer
+
+The page cache is separate from Node.js memory — it’s managed by the OS, not V8.
+
+Once data is in the page cache, the OS guarantees it will eventually reach disk, but not instantly.
+
+✅ If you instead wrote:
+
+
+fs.write(fd, buff, ()=>{})
+The flow becomes shorter:
+
+
+Buffer (V8 heap) → syscall → Page Cache → Disk
+(one copy fewer, faster, less memory waste).
+
+
+************************************************************************************************************
+
+Ahh 🔑 — good observation. Yes, the “internal pool memory” you’re thinking of in Node.js is different from the OS page cache. Let me separate them clearly:
+
+1. Node.js internal Buffer pool (~8 KB chunks, not 4 GB)
+
+When you do Buffer.alloc / Buffer.from, Node doesn’t always ask the OS for memory directly.
+Instead, it manages an internal buffer pool in the V8 heap / process memory.
+This pool is made of chunks (typically 8 KB each).
+Small Buffers (< 4 KB) are usually slices of this pool.
+
+Big Buffers get their own allocation.
+
+⚠️ This is inside your Node.js process, limited by V8 heap settings (--max-old-space-size, usually ~4 GB on 64-bit).
+So when you create 1,000,000 Buffers in your loop, they first live in this Node-managed memory, not in the OS page cache yet.
+
+2. OS page cache (separate, outside Node)
+
+This is managed entirely by the operating system kernel.
+Every time Node (or any program) writes a file, the OS stores that data in page cache (RAM) before flushing it to disk.
+The size of the page cache is not fixed at 4 GB — it dynamically grows/shrinks depending on available system RAM.
+Example: if you have 16 GB RAM, the OS might use 12 GB for page cache if needed.
+
+3. So difference:
+Feature	                    Node.js Buffer Pool (internal)	                                      OS Page Cache
+Who manages it	                 Node.js / V8	                                             Operating System kernel
+Where it lives	              Process memory (heap)                                      	System RAM (outside process)
+Default size	       ~8 KB chunks, up to V8 heap (~4 GB max by default)	              Dynamically managed (can use most of free RAM)
+Purpose	                     Efficient JS Buffer allocations	                          Speed up file I/O (batching, caching)
+Lifecycle	                 Controlled by GC (garbage collector)	                    Controlled by OS (flushed to disk when needed)
+
+
+✅ Summary
+
+The Node internal buffer pool = memory inside Node’s process (V8 heap), used for Buffer objects.
+The OS page cache = memory outside Node, managed by the kernel, used to buffer file I/O.
+So they are different layers of memory. Data passes through Node’s buffer pool → syscall → OS page cache → disk.
