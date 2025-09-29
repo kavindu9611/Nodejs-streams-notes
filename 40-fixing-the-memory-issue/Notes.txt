@@ -1,0 +1,42 @@
+Below code run in a loop
+
+
+(async()=>{
+
+    const fileHandle = await fs.open("test.txt", "w")
+
+    const stream = fileHandle.createWriteStream()
+
+    const buff = Buffer.alloc(16383,"a")
+    console.log(stream.write(buff))//true
+    console.log(stream.write(Buffer.alloc(1,"a")))
+    console.log(stream.write(Buffer.alloc(1,"a")))
+    console.log(stream.write(Buffer.alloc(1,"a")))
+
+    stream.on("drain", ()=>{
+
+        console.log(stream.write(Buffer.alloc(16384,"a")))
+        console.log(stream.writableLength)
+
+        console.log("We are now safe to write more!")
+    })
+
+})()
+
+
+**********************************************************
+
+stream.end(buff) 
+
+above code is indicate that stream is end.if we write this statement below this it will returns a error
+
+stream.end(buff)
+stream.write(data)  ----->return error
+
+this end method emit a 'finish' event
+
+
+stream.end(buff);
+This writes the last buffer and then signals the stream that no more writes will come.
+
+When everything is flushed, the finish event fires.
