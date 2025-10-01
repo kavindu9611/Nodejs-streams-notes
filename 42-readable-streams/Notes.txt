@@ -115,3 +115,36 @@ but that’s not considered a "state" itself, just a signal.
 Idle / Not Flowing
 Flowing
 Paused
+
+
+
+
+**************************************************
+Splitting issue
+
+[0, 1, 2, 3,.........................,32188]
+
+---->
+because we are getting chunks
+
+1st chunk
+[0,1,2,....32] -->In 1st chunk we are not getting 188
+
+2nd chunk
+
+[188, 32189,......] --->In second chunk we get the remainder
+
+1st element of the 1st chunk is always okay and
+last element of the last chunk is also completely okay
+
+
+7.9 MB = 7,892,693 bytes * 8 = 63,141,544 bits (63 million bits)
+1 byte = 8 bits
+1 hexadecimal = 0000
+utf-8 : i character is representing using 0000 0000 (8 bits)
+
+[0,1,2] ---> Regular array
+
+<0000 0000, 0001 0010> ---->  2byte buffer
+
+in streams we are reading 65000 byte chunks
