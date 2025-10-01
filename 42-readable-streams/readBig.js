@@ -13,6 +13,7 @@ const fs = require("node:fs/promises");
 // })()
 
 //Reading from src.txt and writing to the dest.txt
+
 //Below is something you should not do
 //Typically hard drives has a higher read speed comparing to the write speed
 //so here we are having some backpressuring
