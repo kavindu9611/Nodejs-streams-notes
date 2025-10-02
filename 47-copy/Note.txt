@@ -1,0 +1,50 @@
+(async ()=>{
+ const srcFile = await fs.open("test.txt")
+ const destFile = await fs.open("text-copy.txt" , "w")
+
+ console.log(await srcFile.read())
+})()
+
+-------> Output
+
+[Object: null prototype] {
+  bytesRead: 16384,
+  buffer: <Buffer 20 30 20 20 31 20 20 32 20 20 33 20 20 34 20 20 35 20 20 36 20 20 37 20 20 38 20 20 39 20 20 31 30 20 20 31 31 20 20 31 32 20 20 31 33 20 20 31 34 20 ... 16334 more bytes>
+}
+
+
+*****************************************************
+Code explanation
+
+if (bytesRead !== 16384) {
+  const indexOfNotFilled = readResult.buffer.indexOf(0)
+  const newBuffer = Buffer.alloc(indexOfNotFilled)
+  readResult.buffer.copy(newBuffer, 0, 0, indexOfNotFilled)
+  destFile.write(newBuffer)
+}
+
+Line by line:
+
+if (bytesRead !== 16384)
+→ This means: “We didn’t fill the entire buffer, so this must be the last chunk.”
+
+const indexOfNotFilled = readResult.buffer.indexOf(0)
+→ Finds the first zero byte in the buffer (where actual data ended).
+Example:
+
+Copy code
+[65, 66, 67, 0, 0, 0...]   // "ABC" then padding
+            ↑
+      indexOfNotFilled = 3
+const newBuffer = Buffer.alloc(indexOfNotFilled)
+→ Allocates a new buffer only big enough to hold the real data (not the padding).
+
+readResult.buffer.copy(newBuffer, 0, 0, indexOfNotFilled)
+→ Copies only the actual data (0..indexOfNotFilled-1) into the new buffer.
+
+destFile.write(newBuffer)
+→ Writes only the actual data, avoiding writing extra 0x00s.
+
+Why is this needed?
+Because if you just wrote the whole buffer when it’s not full, you’d end up writing unwanted zeros at the end of the file.
+This block makes sure only the valid part of the buffer is written.
