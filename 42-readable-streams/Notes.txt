@@ -148,3 +148,156 @@ utf-8 : i character is representing using 0000 0000 (8 bits)
 <0000 0000, 0001 0010> ---->  2byte buffer
 
 in streams we are reading 65000 byte chunks
+
+*************************************************************
+
+what happens if streamRead.pause() triggers in the middle of a chunk.
+
+✅ What your code does:
+
+Reads bigFile.txt using a stream with highWaterMark: 64KB.
+Splits the chunk into numbers by " " (double space).
+Repairs edge cases when a number is split across two chunks.
+Writes only even numbers to destBig.txt.
+If streamWrite.write() returns false (buffer full), you call streamRead.pause().
+On drain, you resume reading.
+
+⚠️ The subtle issue
+
+If you call:
+
+if (!streamWrite.write(" " + n + " ")) {
+  streamRead.pause();
+}
+
+
+inside the numbers.forEach loop, then you may pause reading in the middle of processing a chunk.
+That means:
+Some numbers from this chunk before pause will be written.
+
+The rest of the numbers in this chunk (after the pause) will be skipped entirely because your 
+on("data") handler won’t re-run for the “half-processed” chunk.
+
+The stream does not replay the same chunk after resuming — it just continues with the next chunk.
+So those remaining numbers are lost.
+
+🔧 How to fix it
+
+You need to buffer the rest of the numbers when a pause happens, and resume processing them when drain fires.
+Example adjustment:
+
+let pendingNumbers = [];
+
+streamRead.on("data", (chunk) => {
+  const numbers = chunk.toString("utf-8").split("  ");
+  // handle split edge cases like you already do...
+  
+  numbers.forEach((number) => {
+    let n = Number(number);
+
+    if (n % 2 === 0) {
+      if (!streamWrite.write(" " + n + " ")) {
+        streamRead.pause();
+        // Save remaining numbers to process later
+        pendingNumbers = numbers.slice(numbers.indexOf(number) + 1);
+        return; // exit early, wait for drain
+      }
+    }
+  });
+});
+
+streamWrite.on("drain", () => {
+  // process remaining buffered numbers
+  while (pendingNumbers.length) {
+    const number = pendingNumbers.shift();
+    let n = Number(number);
+
+    if (n % 2 === 0) {
+      if (!streamWrite.write(" " + n + " ")) {
+        // still full, keep leftovers and wait for next drain
+        return;
+      }
+    }
+  }
+  // resume reading once backlog is cleared
+  streamRead.resume();
+});
+
+⚡ Summary
+
+Problem: If pause() happens mid-chunk, the remaining numbers in that chunk get skipped.
+Fix: Store the leftover numbers and flush them on drain before resuming the read stream.
+
+
+***************************************************************
+
+const fs = require("node:fs/promises");
+
+(async () => {
+  console.time("readBig");
+
+  const fileHandleRead = await fs.open("bigFile.txt", "r");
+  const fileHandleWrite = await fs.open("destBig.txt", "w");
+
+  const streamRead = fileHandleRead.createReadStream({
+    highWaterMark: 64 * 1024, // 64KB chunks
+  });
+  const streamWrite = fileHandleWrite.createWriteStream();
+
+  let leftover = "";            // store split number between chunks
+  let pendingNumbers = [];      // backlog when backpressure occurs
+  let pendingIndex = 0;         // pointer into pendingNumbers
+
+  function processNumbers(numbers) {
+    for (; pendingIndex < numbers.length; pendingIndex++) {
+      let n = Number(numbers[pendingIndex]);
+
+      if (!isNaN(n) && n % 2 === 0) {
+        if (!streamWrite.write(" " + n + " ")) {
+          // Buffer full → pause read + keep backlog
+          streamRead.pause();
+          pendingNumbers = numbers;
+          return; // stop early, wait for 'drain'
+        }
+      }
+    }
+    // all numbers processed, reset backlog
+    pendingNumbers = [];
+    pendingIndex = 0;
+  }
+
+  streamRead.on("data", (chunk) => {
+    // prepend leftover (from previous chunk) before splitting
+    const numbers = (leftover + chunk.toString("utf-8")).split("  ");
+
+    // handle chunk end split (last number may be incomplete)
+    leftover = numbers.pop();
+
+    // process the numbers safely
+    processNumbers(numbers);
+  });
+
+  streamWrite.on("drain", () => {
+    // continue backlog first
+    if (pendingNumbers.length > 0) {
+      processNumbers(pendingNumbers);
+    }
+    // if backlog cleared, resume reading
+    if (pendingNumbers.length === 0) {
+      streamRead.resume();
+    }
+  });
+
+  streamRead.on("end", () => {
+    // handle any leftover number at the very end
+    if (leftover) {
+      let n = Number(leftover.trim());
+      if (!isNaN(n) && n % 2 === 0) {
+        streamWrite.write(" " + n + " ");
+      }
+    }
+
+    console.log("Done reading");
+    console.timeEnd("readBig");
+  });
+})();
