@@ -1,0 +1,18 @@
+piping - In Node.js, piping automatically reads data in chunks 
+from a readable stream and writes it to a writable stream, handling 
+backpressure automatically 
+
+ readStream.pipe(writeStream)
+
+ pipe() - inside ( ) it should be a writable stream
+ you can also specify a duplex and transform
+
+ You can pipe chaining like this
+
+ readStream.pipe(writeStream).pipe(anotherWritable).pipe(dfsf)
+
+ readStream.pipe(writeStream)
+  ---> pipe can only executable on readstream.cannot execute on writable
+
+
+  ***'Read Choose one Api Style' topic  ***** 
