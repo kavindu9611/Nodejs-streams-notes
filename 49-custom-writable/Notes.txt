@@ -1,0 +1,81 @@
+Node.js Writable Stream — Custom _write() Behavior
+
+1. Basic Structure
+
+const { Writable } = require("node:stream");
+
+class FileWriteStream extends Writable {
+  constructor({ highWaterMark, fileName }) {
+    super({ highWaterMark });
+    this.fileName = fileName;
+  }
+
+  _write(chunk, encoding, callback) {
+    console.log(`Writing: ${chunk.toString()}`);
+
+    // Simulate async writing (e.g., writing to a file)
+    setTimeout(() => {
+      console.log("Write completed for:", chunk.toString());
+      callback(); // Tell Node.js this write is done
+    }, 5000);
+  }
+}
+
+const stream = new FileWriteStream({ highWaterMark: 1800 });
+stream.write("Chunk 1");
+stream.write("Chunk 2");
+stream.write("Chunk 3");
+stream.end("Last chunk");
+
+2. What Happens Step by Step
+
+01.stream.write("Chunk 1") →
+    Node.js calls _write() with "Chunk 1" immediately.
+
+02.Inside _write():
+
+    The chunk is “being written” (here, simulated with a 5s delay using setTimeout).
+    The callback (callback()) is not called yet, so Node.js assumes the writer is still busy.
+
+03.While _write() is still busy (before callback):
+
+    If you call stream.write("Chunk 2") or stream.write("Chunk 3"),
+    they don’t get written immediately.
+
+    Instead, Node.js buffers those chunks internally until the current write finishes.
+
+04.After 5 seconds, _write() calls callback().
+Node.js then:
+
+    Takes the next chunk from the internal buffer,
+
+    Calls _write() again for that chunk,
+
+    And repeats until all buffered chunks are written.
+
+Finally, stream.end("Last chunk") sends the last piece and closes the stream after writing it.
+
+3. 💡 Simple Explanation of Timing Behavior
+Scenario	                                                                             What Happens
+stream.write() called before _write() calls callback()	                                Data is stored in an internal buffer (not yet written)
+stream.write() called after _write() has called callback()	                            Data is sent to _write() immediately
+_write() uses setTimeout() (or any async delay)	                                        All writes made during that delay are queued up (buffered) until 
+                                                                                        the current write finishes
+
+4. 🧩 Why the “5 seconds wait”
+
+The setTimeout(..., 5000) inside _write() simulates a slow writing process (like writing to a file or network).
+That’s why there’s a 5-second delay before calling callback(), which makes Node.js wait before writing the next chunk.
+
+In a real file or socket stream, the delay would depend on I/O speed instead of a manual timeout.
+
+✅ Summary
+
+stream.write() queues chunks to be written.
+_write() processes one chunk at a time.
+
+Node.js waits for callback() before sending the next chunk.
+
+If _write() is slow, writes are buffered internally.
+
+Once you call stream.end(), it writes the last chunk and closes the stream.
