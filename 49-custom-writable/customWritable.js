@@ -48,6 +48,9 @@ class FileWriteStream extends Writable {
         //when we're done.We should call the callback function
         //callback accept only one parameter error or null
         //if you dont specify anything inside callback indicate that you are done writing and it should move on
+        //callback() inside _write emit this
+        // stream.on("drain", () => {});
+
         callback();
       });
     } else {

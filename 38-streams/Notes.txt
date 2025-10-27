@@ -73,7 +73,7 @@ to set up a stream of data between these two points.
 
 So in our case of doing this, copy paste rather than just moving this whole file into memory and then
 just one.
-Right.
+write
 You're going to just send different chunks.
 Maybe send them in chunk of 16kB, 20kB, one megabyte or something like that.
 Now, yeah, you are technically doing more writes, but it's way more memory efficient.

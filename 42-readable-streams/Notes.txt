@@ -84,7 +84,7 @@ As soon as you add the data events, what's going to happen is that the stream wi
 that internal resource, and then you're going to get the data in chunks.
 If I remove this data event, then what's going to happen is that the stream will be in a pause state and
 will no longer give me any data.
-And also, I have one more event available on the stream which is stream dot on end.
+And also, I have one more event available on the stream which is stream.on (end).
 And if I call that, the callback function will be executed when we are done reading that source.
 
 

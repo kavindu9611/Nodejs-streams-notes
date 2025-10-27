@@ -138,7 +138,7 @@ OS Page Cache (persistent until flushed).
 
 fs.write(fd, buff, ()=>{})
 instead of interpolating buff into a string. That way, you avoid creating millions of extra Buffers.
-Do you want me to also show you a memory flow diagram (Node heap → libuv → syscall → page cache → disk) for this case?
+
 
 Memory flow step by step with a diagram for your case.
 
@@ -203,9 +203,8 @@ Buffer (V8 heap) → syscall → Page Cache → Disk
 (one copy fewer, faster, less memory waste).
 
 
-************************************************************************************************************
-
-Ahh 🔑 — good observation. Yes, the “internal pool memory” you’re thinking of in Node.js is different from the OS page cache. Let me separate them clearly:
+***********************************************************************************************************
+ the “internal pool memory” you’re thinking of in Node.js is different from the OS page cache. Let me separate them clearly:
 
 1. Node.js internal Buffer pool (~8 KB chunks, not 4 GB)
 
@@ -240,3 +239,81 @@ Lifecycle	                 Controlled by GC (garbage collector)	                
 The Node internal buffer pool = memory inside Node’s process (V8 heap), used for Buffer objects.
 The OS page cache = memory outside Node, managed by the kernel, used to buffer file I/O.
 So they are different layers of memory. Data passes through Node’s buffer pool → syscall → OS page cache → disk.
+
+
+
+#################################################################################################
+
+🧩 The code
+
+(async () => {
+
+  const fileHandle = await fs.open("test.txt", "w")
+
+  for (let i = 0; i < 1000000; i++) {
+    await fileHandle.write(` ${i} `)
+  }
+
+})();
+
+🧠 Step-by-step breakdown
+1️⃣ Your JavaScript (userland)
+
+For each iteration in the loop:
+
+You call:
+
+await fileHandle.write(` ${i} `)
+
+
+The string ` ${i} ` is converted into a Buffer internally by Node.js.
+(So yes, a new small Buffer is created each time.)
+
+That Buffer + the file descriptor (inside fileHandle) are sent to libuv.
+
+So you’re right up to this point:
+✅ “Buffer is created → libuv calls the write system call with that buffer and filehandle.”
+
+2️⃣ libuv layer (C code inside Node.js)
+
+libuv takes the file descriptor (fd) and the pointer to the Buffer’s memory.
+
+It then submits a write() system call to the OS (through the kernel).
+
+In pseudocode:
+
+write(fd, buffer_ptr, buffer_length);
+
+
+Because await is used, Node.js pauses your JS execution until this write completes.
+(Other async tasks in the event loop can still run, but this particular await waits.)
+
+3️⃣ Operating System (Kernel space)
+
+Now the kernel steps in:
+
+The OS receives the write() syscall with the file descriptor, buffer pointer, and length.
+
+The OS copies the data from user space (your Buffer) into kernel space (page cache).
+
+✅ So yes — your understanding is correct:
+The data is copied into the page cache (not directly to disk yet).
+
+The kernel marks those memory pages as “dirty” (meaning: data not yet flushed to disk).
+
+The write() syscall returns to libuv once the copy into page cache is complete — not when data is physically written to disk.
+
+So your await fileHandle.write() completes as soon as the kernel has copied your buffer into the page cache.
+
+4️⃣ Disk I/O (later)
+
+At some later point, the OS decides (or fsync() forces) to flush those dirty pages to the physical disk.
+This is done asynchronously by the OS — you don’t wait for it in your JS code.
+
+⚙️ In short:
+Step	               Component	                What happens
+
+1	                     JS	                 Creates buffer from string
+2	                   libuv	              Calls write() system call
+3	                    Kernel	                 Copies buffer → page cache
+4	                Kernel (later)	            Flushes page cache → disk (async)

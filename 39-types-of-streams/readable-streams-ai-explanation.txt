@@ -119,13 +119,8 @@ Helps prevent out-of-memory crashes.
 
 ✅ Best Practice: If you need to move big data (files, HTTP responses, etc.), always use Readable + Writable streams instead of loading everything into memory.
 
-👉 Would you like me to also make a diagram of the Readable stream buffer (like I did for Writable), showing how data chunks get stored and then emitted with 'data' events?
 
-You said:
-diagram
-ChatGPT said:
-
-Perfect 👍 — let’s illustrate how a Readable Stream buffer works with a diagram.
+ let’s illustrate how a Readable Stream buffer works with a diagram.
 
 🖼 Readable Stream Buffer Diagram
 
@@ -186,13 +181,10 @@ Each chunk you get from a Readable stream corresponds to an individual buffer en
 
 They’re emitted one by one in order until the source is finished.
 
-👉 Do you also want me to make a second diagram that shows what happens when you pipe a readable stream into a writable stream (so you can see how both buffers connect and backpressure is handled)?
 
-You said:
 pipe a readable stream into a writable stream diagram
-ChatGPT said:
 
-Awesome — let’s now show how piping works when you connect a Readable Stream to a Writable Stream.
+how piping works when you connect a Readable Stream to a Writable Stream.
 
 🖼 Pipe Diagram – Readable → Writable
 

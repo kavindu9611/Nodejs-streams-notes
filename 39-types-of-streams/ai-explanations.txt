@@ -3,8 +3,8 @@ Node.js Writable Streams - Beginner's Guide
 What is a Writable Stream?
 A Writable Stream is like a smart container that helps you write data efficiently to destinations like files,
  network connections, or databases. Think of it as a buffer between your code and the actual writing operation.
-The Four Types of Streams in Node.js
-As shown in the first image, Node.js has four main types of streams:
+
+Node.js has four main types of streams:
 
 Writable - For writing data (e.g., writing to files)
 Readable - For reading data (e.g., reading from files)
@@ -50,7 +50,7 @@ This can cause memory issues
 
 Example Problem Scenario:
 
-javascript// Dangerous! This could cause memory issues
+Dangerous! This could cause memory issues
 stream.write(veryLargeData); // 800MB of data
 What happens:
 
@@ -64,7 +64,7 @@ To prevent memory issues, you need to:
 Wait for the buffer to empty before writing more data
 Listen for the 'drain' event which tells you the buffer is ready for more data
 
-javascriptconst stream = fs.createWriteStream('output.txt');
+const stream = fs.createWriteStream('output.txt');
 
 // Listen for when the buffer is ready for more data
 stream.on('drain', () => {
@@ -182,11 +182,7 @@ It’s a queue (linked list) of individual chunks waiting to be written.
 Would you like me to draw a step-by-step diagram (like boxes for each chunk inside the internal buffer queue → then 
 arrows to the file) to make this super clear?
 
-You said:
-yes diagram
-ChatGPT said:
-
-Perfect 👍 let’s visualize how Writable Stream internal buffer works.
+How Writable Stream internal buffer works.
 
 🖼 Writable Stream Buffer Diagram
 
@@ -234,7 +230,7 @@ The OS may optimize and merge writes, but inside Node they stay separate.
 
 Order is always preserved (abc before def before ghi).
 
-👉 Do you want me to also draw a second diagram showing what happens when the buffer fills up (hits 16KB → write() 
+👉 Diagram showing what happens when the buffer fills up (hits 16KB → write() 
 returns false → waiting for 'drain')? That would make backpressure much clearer.
 
 

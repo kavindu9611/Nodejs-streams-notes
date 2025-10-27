@@ -22,6 +22,8 @@ const fs = require("node:fs/promises");
 
 // })()
 
+
+
 // (async()=>{
 
 //     const fileHandle = await fs.open("test.txt", "w")
@@ -78,7 +80,7 @@ const fs = require("node:fs/promises");
 
       //This is our last write
       if (i === 999999) {
-        stream.end(buff);
+        stream.end(buff); //This means we are done to writing to the stream.,and this emit 'finish' event
         return;
       }
 

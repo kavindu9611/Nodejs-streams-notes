@@ -226,7 +226,7 @@ Let's say it's a message coming to your network card.
 Maybe it's a request or if it's a file you want to read.
 So what should you do in this case?
 What do you think?
-Let's say that I want to write a data to a writable stream t
+Let's say that I want to write a data to a writable stream 
 Maybe it's a file and the data is so huge, what should I do in that case?
 Well, what you should do is to first create a readable stream off of this data, be it a file or a
 request, anything.
