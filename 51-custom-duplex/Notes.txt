@@ -1,0 +1,109 @@
+Duplex is like writable and readable.
+
+Because javascript does not have support for multiple inheritance.
+The stream.Duplex class is extended to implement a Duplex stream
+(as opposes to extending the stream.Readable and stream.Writable classes)
+
+We only have duplex in JavaScript, because JavaScript does not have support
+for multiple inheritance.
+
+In javascript if we can do below we dont need to have duplex.
+but javascript doesnot support this
+
+class myCustomDuplex extends Writable,Readable {
+
+}
+
+when you're implementing a duplex you have two different streams.
+
+
+So when you're implementing a duplex stream, you have to specify the write and read methods
+So you're reading from one place and you're writing to another place.
+Now these two places could be completely different from each other.
+
+
+So let's say that this is our duplex object.
+Now this duplex stream has a readable internal buffer and also a writable internal buffer.
+So a duplex stream has two buffers comparing to a readable and writable stream which only have one buffer.
+A duplex has two internal buffers.
+Now these two sides of this duplex readable side and a writable side.
+They are totally separated from each other.
+
+
+They don't have to be related to each other at all.
+So they could maybe read from one source and write to another source.
+They don't have to be any relation whatsoever.
+
+Now in the real world you push data like this to readable internal buffer
+So you call stream.push(data) like _read() method.
+That's how you push data into a readable stream.
+And the data could come from maybe source.txt.
+
+So we read from this source and then you push and then you get the chunks here in the chunk variable.
+And you could really do nothing with that chunk.
+You could just let it be there.
+Or you could maybe log it to the screen or do whatever you want.
+So you don't really have to do anything with this.
+You don't even have to call stream.on('data', (chunk)=> {....})
+You could just keep it in a pause state and that's totally fine.
+
+Now again in the write side you write using stream.write(data).
+So you push data in that internal buffer, and then once it's filled, you're going to get the data
+out.
+And maybe you could just write it to whatever the text file or any other destination.
+So these two sides are not related to each other at all.
+They could be related.
+You could set it up in a way that they could be related, but they don't have to be.
+You could read from a file maybe, and you could write to a network card, or you could write to another
+process.
+They don't really have to be related to each other at all.
+
+So you could maybe change it, change the stream to a pause state, and while it's happening write to
+your readable side, or maybe keep it flowing and also keep writing to it.
+These are totally separated.
+Now there are some use cases where a duplex would be useful.
+Now in NodeJS there's one module that's using it. That is.
+Net module TCP sockets.
+And we're going to see that later in the course.
+But I guess that's the only place that we're using duplex in node.
+
+
+If we say that we are writing the data in the writable internal buffer just like before, but now when
+we are pulling the data out from this writable side, if instead of just writing that data to an internal
+resource like a file, maybe if instead we now push the written data to the readable side of the duplex
+stream, and now that we have pushed the data in the readable side, we could now consume the data just
+like before, so we could start reading it using .on('data') events.
+And if we do this with a duplex stream, now we have a special kind of a duplex stream, which is called
+a transform stream.
+
+So here we are writing to the transform stream, just like what we do with a writeable stream or a duplex
+stream.
+So we say transform stream dot write chunk if that's the name of our stream.
+And now the stream itself will get that data, we'll get that written data, and it will make it to
+be the source of the readable side.
+And then we could consume that data from that readable side if we want.
+So whatever stuff you write to the stream will be the source of the readable side.
+And it will also do some operations on the written data before putting it in the readable side, if you
+set it up to be.
+So maybe encrypting, compressing, making letters uppercase if our data is just text or anything
+else.
+If you do this with a duplex stream, you're going to end up with a transform stream.
+Now, a transform stream is just inheriting from duplex, but it's _write and _read
+methods are set up in a way that would just pass the data around between these two internal buffers.
+
+Now, technically, if you just pass the data around and don't do anything with it, you still have
+a transform stream.
+But it's usually called a pass through stream because you're just passing the data around and you're
+not really doing anything with it.
+
+But if you do some operations here in this passing around, maybe compressing the file or encrypting
+the file or, if it's a text file, just making all the letters uppercase or something
+like that.
+Well, in that case it is a transform stream.
+
+But it doesn't have to be like that.
+You could just pass it around and it's still well called a transform stream.
+
+But this is how a duplex and a transform stream work.
+And node.
+
