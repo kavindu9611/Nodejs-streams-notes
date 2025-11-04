@@ -1,0 +1,114 @@
+encryption/decryption ===> use in crypto module
+compression ===> zlib module
+hashing-salting ===>use in crypto module
+decoding/encoding ===> buffer text-encoding/decoding
+
+above things are completely seperated from each other
+They are all similar to each other because we are all of these dealing with binary data
+
+if we encrypt the data, we're making it into something that no one else can really decipher what's
+going on unless they have access to what we did.
+
+use cases of compress
+    *When we are sending the requests
+    *When we are receiving the responses
+
+
+Hashing
+
+Hashing is different from encryption
+When You hash something, you make a password into something else, and you also have this code that you
+use to switch between that.
+Actually, you can't go back.
+So if you hash something you cannot go back.
+What you can do is to get an input and hash it again.
+And if you do get the same values, it means that you know your password was okay.
+And salting is something related to hashing.
+It's not the opposite of hashing, but it's something that you use in hashing.
+
+
+CODE EXAMPLE
+
+const { Transform } = require("node:stream");
+const fs = require("node:fs/promises");
+
+// 🧱 Step 1: Create a Transform stream class
+class Encrypt extends Transform {
+  _transform(chunk, encoding, callback) {
+    console.log("🔹 Chunk received from readStream:", chunk.toString("utf-8"));
+
+    // Imagine we could modify the chunk here (e.g., encryption)
+    const processedChunk = chunk; // not modified yet
+
+    // 🔹 Send (push) the processed data to the next stream in the pipe chain
+    this.push(processedChunk);
+
+    // 🔹 Signal that this chunk is done
+    callback();
+  }
+}
+
+(async () => {
+  // 🗂️ Step 2: Open the files for reading and writing
+  const readFileHandle = await fs.open("read.txt", "r");
+  const writeFileHandle = await fs.open("write.txt", "w");
+
+  // 🌊 Step 3: Create streams from the file handles
+  const readStream = readFileHandle.createReadStream();
+  const writeStream = writeFileHandle.createWriteStream();
+
+  // 🔒 Step 4: Create our custom Transform stream instance
+  const encrypt = new Encrypt();
+
+  // 🔗 Step 5: Connect (pipe) all three streams together
+  readStream.pipe(encrypt).pipe(writeStream);
+
+  // 🏁 Step 6: When finished
+  writeStream.on("finish", () => {
+    console.log("✅ All data written to write.txt");
+  });
+})();
+
+🔍 Visual Data Flow Diagram
+
+
+ ┌────────────┐
+ │ read.txt   │
+ └─────┬──────┘
+       │
+       ▼
+ ┌──────────────┐
+ │ Read Stream  │   (reads data in chunks)
+ └─────┬────────┘
+       │  "Hello World"
+       ▼
+ ┌────────────────────────────┐
+ │ Encrypt (Transform Stream) │
+ │                            │
+ │  _transform(chunk) {       │
+ │    console.log(chunk);     │
+ │    this.push(chunk);       │
+ │  }                         │
+ └─────┬──────────────────────┘
+       │  "Hello World"
+       ▼
+ ┌──────────────┐
+ │ Write Stream │   (writes chunks to file)
+ └─────┬────────┘
+       │
+       ▼
+ ┌────────────┐
+ │ write.txt  │
+ └────────────┘
+
+
+🧠 Notes (to remember):
+readStream — reads data in chunks from the source file.
+
+encrypt (Transform) — processes each chunk (you can modify, encrypt, etc.).
+
+this.push() — sends the processed chunk to the next stream.
+
+writeStream — writes whatever comes next into the target file.
+
+.pipe() — connects streams together so data flows automatically between them.
